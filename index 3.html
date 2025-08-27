@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تطبيق أسئلة تفاعلي — رياضيات ثالث ابتدائي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{--brand:#ec4899;--brand-dark:#be185d}
+    body{font-family:'Tajawal',system-ui,-apple-system,Segoe UI,Roboto,'Noto Sans Arabic',sans-serif;background:linear-gradient(180deg,#fff 0%,#fff5fb 60%,#ffe6f4 100%)}
+    .card{backdrop-filter:blur(6px)}
+    .choice{transition:transform .15s ease, box-shadow .15s ease}
+    .choice:hover{transform:translateY(-2px)}
+    .glow{box-shadow:0 0 0 3px rgb(236 72 153/.25)}
+    .confetti{position:fixed;inset:0;pointer-events:none}
+    .rtl-num{font-variant-numeric:tabular-nums}
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <canvas id="confetti" class="confetti"></canvas>
+
+  <main class="w-full max-w-3xl">
+    <section class="card rounded-3xl shadow-2xl bg-white/90 border border-pink-100 p-5 sm:p-8">
+      <header class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-[var(--brand)] grid place-items-center text-white text-xl font-extrabold">٣</div>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-extrabold text-[var(--brand-dark)]">اختبار تفاعلي ممتع — رياضيات ثالث</h1>
+            <p class="text-sm text-gray-500">أسئلة اختيار من متعدد مع تشجيع فوري ونجوم تقدّم ⭐</p>
+          </div>
+        </div>
+        <button id="resetBtn" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm">
+          إعادة البداية ↺
+        </button>
+      </header>
+
+      <div class="mt-6">
+        <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div id="bar" class="h-full bg-[var(--brand)] transition-all rtl-num" style="width:0%"></div>
+        </div>
+        <div class="mt-2 flex items-center justify-between text-sm text-gray-600">
+          <span id="progressTxt">السؤال 1 من <span id="totalQ">0</span></span>
+          <span id="scoreTxt">النتيجة: <b class="rtl-num" id="score">0</b></span>
+        </div>
+      </div>
+
+      <article id="stage" class="mt-6"></article>
+
+      <footer class="mt-8 flex flex-wrap gap-3 items-center justify-between">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="inline-block w-2 h-2 rounded-full bg-[var(--brand)]"></span>
+          <span class="text-gray-600">نصيحة: اختَر الإجابة ثم اضغط «التالي».</span>
+        </div>
+        <div class="flex gap-2">
+          <button id="prevBtn" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200">السابق</button>
+          <button id="nextBtn" class="px-4 py-2 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)]">التالي</button>
+        </div>
+      </footer>
+    </section>
+
+    <section id="result" class="hidden mt-6 text-center">
+      <div class="rounded-3xl bg-white/90 border border-pink-100 shadow-2xl p-8">
+        <h2 class="text-2xl font-extrabold text-[var(--brand-dark)]">أحسنتِ يا بطلة! 🎉</h2>
+        <p class="mt-2 text-gray-600">أنهيتِ الاختبار بنتيجة <b class="rtl-num" id="finalScore">0</b>/<span id="totalQ2">0</span>.</p>
+        <p id="badge" class="mt-3 text-lg font-bold"></p>
+        <div class="mt-5 flex flex-wrap justify-center gap-3">
+          <button id="retryBtn" class="px-5 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200">إعادة المحاولة ↺</button>
+          <button id="printBtn" class="px-5 py-2 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-dark)]">طباعة الشهادة 🏅</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- تذييل الحقوق -->
+  <div class="w-full text-center mt-6 text-xs text-gray-500">
+    تصميم وبرمجة : <b>أ/ فاطمة هزازي</b>
+  </div>
+
+  <script>
+  // ——— بيانات الأسئلة ———
+  const QUESTIONS = [
+    {
+      id:1,
+      q:"رَكضَ ناصرُ ٤ دورات في اليوم الأول، و٦ في الثاني، و٨ في الثالث. إذا استمرّ على هذا النمط، فكم دورة سيَركض في اليوم الخامس؟",
+      choices:["١٢","١٠","١٤","١٦"],
+      correct:0,
+      hint:"يزيد بمقدار ٢ في كل يوم."
+    },
+    {
+      id:2,
+      q:"رسمت هدى ١٠ زهرات يوم الإثنين، و١٣ يوم الثلاثاء، و١٦ يوم الأربعاء. إذا استمرت على هذا النمط، فكم زهرة سترسم يوم الخميس؟",
+      choices:["١٧","١٨","١٩","٢٠"],
+      correct:2,
+      hint:"يزيد العدد ٣ في كل يوم."
+    },
+    {
+      id:3,
+      q:"مشى أحمد خطوتين إلى الأمام، ثم اتجه يمينًا ومشى ٤ خطوات. كم خطوة يحتاجها ليعود إلى نقطة البداية إذا اتبع المسار نفسه بالعكس؟",
+      choices:["٤","٦","٨","٢"],
+      correct:1,
+      hint:"يعكس المسار: ٤ خطوات يسارًا ثم خطوتان للخلف."
+    },
+    {
+      id:4,
+      q:"قرأت روان كتابًا يزيد ٢٤ صفحة على صفحات كتاب إيمان. إذا كان كتاب إيمان يحوي ١٢ صفحة، فكم عدد صفحات كتاب روان؟",
+      choices:["٢٤","١٢","٣٦","٣٠"],
+      correct:2,
+      hint:"١٢ + ٢٤ = ٣٦ صفحة."
+    },
+    {
+      id:5,
+      q:"أكملي النمط: ٤٨، ٥١، ٥٤، ◼︎، ٦٠، ٦٣",
+      choices:["٥٧","٥٦","٥٥","٦٦"],
+      correct:0,
+      hint:"يزيد بمقدار ٣."
+    },
+    {
+      id:6,
+      q:"أكملي النمط: ٨، ١٢، ◼︎، ٢٠، ٢٤، ٢٨",
+      choices:["١٤","١٦","١٨","١٠"],
+      correct:1,
+      hint:"يزيد بمقدار ٤."
+    }
+  ];
+
+  // ——— عناصر ———
+  const stage = document.getElementById('stage');
+  const bar = document.getElementById('bar');
+  const progressTxt = document.getElementById('progressTxt');
+  const scoreTxt = document.getElementById('score');
+  const nextBtn = document.getElementById('nextBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const result = document.getElementById('result');
+  const totalQ = document.getElementById('totalQ');
+  const totalQ2 = document.getElementById('totalQ2');
+  const finalScore = document.getElementById('finalScore');
+  const retryBtn = document.getElementById('retryBtn');
+  const printBtn = document.getElementById('printBtn');
+
+  totalQ.textContent = totalQ2.textContent = QUESTIONS.length;
+
+  // ——— حالة التطبيق ———
+  let idx = 0;
+  let score = 0;
+  let answers = new Array(QUESTIONS.length).fill(null);
+
+  // ——— رسم سؤال ———
+  function render(){
+    const q = QUESTIONS[idx];
+    progressTxt.innerHTML = `السؤال ${idx+1} من <span>${QUESTIONS.length}</span>`;
+    bar.style.width = ((idx)/ (QUESTIONS.length))*100 + '%';
+
+    stage.innerHTML = `
+      <div class="rounded-2xl border border-pink-100 bg-white p-5 sm:p-6">
+        <div class="text-lg sm:text-xl font-bold text-gray-800">${q.q}</div>
+        <div class="mt-4 grid sm:grid-cols-2 gap-3" id="choices"></div>
+        <div class="mt-3 text-sm text-gray-500">تلميح: ${q.hint}</div>
+      </div>`;
+
+    const box = stage.querySelector('#choices');
+    q.choices.forEach((c,i)=>{
+      const btn = document.createElement('button');
+      btn.className = 'choice w-full text-right px-4 py-3 rounded-xl border bg-white hover:bg-pink-50';
+      btn.innerHTML = `<span class='rtl-num'>${String.fromCharCode(0x41 + i)})</span> ${c}`;
+      if(answers[idx]!==null){
+        btn.disabled = true;
+        if(i===answers[idx]) btn.classList.add('glow');
+      }
+      btn.addEventListener('click',()=>select(i));
+      box.appendChild(btn);
+    });
+    prevBtn.disabled = idx===0;
+    nextBtn.textContent = (idx===QUESTIONS.length-1)? 'إنهاء' : 'التالي';
+  }
+
+  // ——— اختيار إجابة ———
+  function select(i){
+    if(answers[idx]!==null) return; // منع تغيير الإجابة
+    answers[idx]=i;
+    const correct = QUESTIONS[idx].correct===i;
+    if(correct){ score++; boom(); }
+    scoreTxt.textContent = score;
+    // تلوين الاختيارات
+    [...stage.querySelectorAll('.choice')].forEach((b,n)=>{
+      b.disabled = true;
+      if(n===QUESTIONS[idx].correct){ b.classList.add('bg-green-50','border-green-400'); }
+      if(n===i && !correct){ b.classList.add('bg-red-50','border-red-300'); }
+    });
+  }
+
+  // ——— أزرار التنقل ———
+  nextBtn.addEventListener('click',()=>{
+    if(idx < QUESTIONS.length-1){ idx++; render(); }
+    else { finish(); }
+  });
+  prevBtn.addEventListener('click',()=>{ if(idx>0){ idx--; render(); }});
+  resetBtn.addEventListener('click',()=>{ reset(); render(); });
+  retryBtn?.addEventListener('click',()=>{ reset(); result.classList.add('hidden'); document.querySelector('main>section').classList.remove('hidden'); render(); });
+
+  function finish(){
+    bar.style.width = '100%';
+    finalScore.textContent = score;
+    document.querySelector('main>section').classList.add('hidden');
+    result.classList.remove('hidden');
+    let badge = '';
+    const p = (score/QUESTIONS.length)*100;
+    if(p===100){ badge = 'وسام الذهبي — رائعة! 🥇'; }
+    else if(p>=80){ badge = 'وسام الفضي — ممتازة! 🥈'; }
+    else if(p>=50){ badge = 'وسام البرونزي — أحسنتِ! 🥉'; }
+    else{ badge = 'استمري بالمحاولة، أنتِ قادرة 💪'; }
+    document.getElementById('badge').textContent = badge;
+    boom(100);
+  }
+
+  function reset(){ idx=0; score=0; answers.fill(null); scoreTxt.textContent=0; }
+
+  // ——— مؤثرات: قصاصات ورقية ———
+  const cvs = document.getElementById('confetti');
+  const ctx = cvs.getContext('2d');
+  let confetti = [];
+  function resize(){ cvs.width=innerWidth; cvs.height=innerHeight; }
+  addEventListener('resize',resize); resize();
+  function boom(count=40){
+    for(let i=0;i<count;i++){
+      confetti.push({x:Math.random()*cvs.width, y:-10, s: 4+Math.random()*6, v: 2+Math.random()*3, r: Math.random()*Math.PI});
+    }
+  }
+  function tick(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    confetti.forEach(p=>{
+      p.y+=p.v; p.r+=0.05; const w=p.s, h=p.s*0.6;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+      ctx.fillStyle = ['#ec4899','#f472b6','#fca5a5','#f59e0b','#10b981'][Math.floor(Math.random()*5)];
+      ctx.fillRect(-w/2,-h/2,w,h); ctx.restore();
+    });
+    confetti = confetti.filter(p=>p.y<cvs.height+20);
+    requestAnimationFrame(tick);
+  } tick();
+
+  // ——— شهادة للطباعة ———
+  printBtn?.addEventListener('click',()=>{
+    const w = window.open('', 'cert');
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head>
+      <meta charset="utf-8"><title>شهادة إنجاز</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;800&display=swap" rel="stylesheet">
+      <style>body{font-family:Tajawal,system-ui;background:#fff} .box{width:900px;margin:60px auto;padding:40px;border:6px solid #fbcfe8;border-radius:20px;text-align:center} h1{color:#be185d} .big{font-size:48px} .pink{color:#ec4899} .muted{color:#64748b}</style>
+      </head><body>
+        <div class="box">
+          <div class="big">🏅 شهادة إنجاز</div>
+          <h1>رياضيات ثالث ابتدائي</h1>
+          <p>تهانينا! لقد أتممتِ الاختبار وحققتِ نتيجة <b class="pink">${score}/${QUESTIONS.length}</b>.</p>
+          <p>استمري في التدريب، وبالتوفيق دائمًا 💖</p>
+          <p class="muted" style="margin-top:20px">تصميم وبرمجة : أ/ فاطمة هزازي</p>
+        </div>
+      </body></html>`;
+    w.document.write(html); w.document.close(); w.focus(); w.print();
+  });
+
+  // بدء
+  render();
+  </script>
+</body>
+</html>
